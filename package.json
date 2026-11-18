@@ -1,0 +1,27 @@
+{
+  "name": "stage-multicam-kernel",
+  "version": "1.0.0",
+  "description": "舞台多机位点播内核：共享时间线、WebCodecs 真实解码链、主轨音频时钟与解码器预算切换",
+  "type": "module",
+  "scripts": {
+    "media": "node tools/generate-media.mjs",
+    "serve": "node tools/serve.mjs",
+    "test:unit": "node --test 'test/*.test.js'",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e",
+    "browser:deps": "node tools/fetch-chromium-libs.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vdqc5039-9.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@ffmpeg/core": "^0.12.9",
+    "@ffmpeg/ffmpeg": "^0.12.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "playwright": "^1.65.1"
+  }
+}

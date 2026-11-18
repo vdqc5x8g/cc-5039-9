@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>舞台多机位点播内核</title>
+<style>
+  :root {
+    --bg: #0e1320; --panel: #161d2e; --line: #28324b; --text: #e8ecf6;
+    --muted: #9aa6c2; --accent: #5b8cff; --warn: #d98a3d; --bad: #d9534f; --ok: #4caf78;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  header { padding: 14px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; }
+  header h1 { font-size: 17px; margin: 0; }
+  header span { color: var(--muted); font-size: 12px; }
+  .layout { display: grid; grid-template-columns: minmax(420px, 1fr) 360px; gap: 16px; padding: 16px 22px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .panel h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: .08em; }
+  canvas { width: 100%; background: #000; border-radius: 8px; display: block; }
+  .stage-wrap { position: relative; }
+  .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 6px; background: rgba(8,11,20,.72); border-radius: 8px; }
+  .overlay.show { display: flex; }
+  .overlay .big { font-size: 18px; font-weight: 700; }
+  .overlay .small { color: var(--muted); font-size: 13px; max-width: 80%; text-align: center; }
+  .spinner { width: 34px; height: 34px; border: 3px solid #3a4666; border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .transport { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button { background: #223052; color: var(--text); border: 1px solid var(--line); border-radius: 7px;
+    padding: 7px 14px; cursor: pointer; font-size: 13px; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .cameras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .cam-btn { text-align: left; padding: 10px; position: relative; }
+  .cam-btn .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; }
+  .cam-btn.requested { outline: 1.5px dashed var(--warn); }
+  .cam-btn.presenting { outline: 2px solid var(--ok); background: #1d3226; }
+  .cam-btn.unavailable { opacity: .45; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+  .badge.waiting { background: #4a3520; color: var(--warn); }
+  .badge.presenting { background: #1e3d2c; color: var(--ok); }
+  .badge.gap { background: #46201f; color: var(--bad); }
+  .badge.idle { background: #28324b; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  .scroll { max-height: 240px; overflow-y: auto; }
+  .gap-note { color: var(--bad); font-size: 12px; min-height: 18px; margin-top: 8px; }
+  .test-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  audio { display: none; }
+  .sync-good { color: var(--ok); } .sync-bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>舞台多机位点播内核</h1>
+  <span>共享表演时间线 · WebCodecs 真实解码链 · 主轨音频时钟 · 解码器预算 LRU</span>
+</header>
+
+<div class="layout">
+  <div>
+    <div class="panel">
+      <h2>舞台画面（canvas 呈现，非 video 元素切换）</h2>
+      <div class="stage-wrap">
+        <canvas id="stage" width="640" height="360"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="spinner" id="spinner"></div>
+          <div class="big" id="overlayTitle"></div>
+          <div class="small" id="overlayDetail"></div>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="primary" id="playBtn">播放</button>
+        <button id="pauseBtn">暂停</button>
+        <input type="range" id="seek" min="0" max="40" step="0.1" value="0" />
+        <span class="v" id="clockLabel">0.00s / 40.00s</span>
+      </div>
+      <div class="gap-note" id="gapNote"></div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>机位选择（按钮调用 SwitcherKernel.requestView）</h2>
+      <div class="cameras" id="cameraButtons"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>视角与同步状态</h2>
+      <div class="kv">
+        <div class="k">请求视角</div><div class="v" id="requestedView">—</div>
+        <div class="k">正在呈现</div><div class="v" id="presentingView">—</div>
+        <div class="k">内核状态</div><div class="v"><span class="badge idle" id="stateBadge">idle</span></div>
+        <div class="k">时钟时刻</div><div class="v" id="clockTime">—</div>
+        <div class="k">帧真实时刻</div><div class="v" id="frameTime">—</div>
+        <div class="k">同步偏差</div><div class="v" id="syncError">—</div>
+        <div class="k">黑屏累计</div><div class="v" id="blackRange">0 ms</div>
+        <div class="k">解码器占用</div><div class="v" id="decoderCount">0 / 3</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>切换测量结果（内核实测，非固定数据）</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>#</th><th>切换</th><th>延迟ms</th><th>同步ms</th><th>依赖链</th><th>淘汰</th></tr></thead>
+          <tbody id="metricsBody"><tr><td colspan="6" style="color:var(--muted)">尚无切换记录</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>测试场景</h2>
+      <div class="test-row">
+        <button id="testCold">冷切换(经淘汰)</button>
+        <button id="testGap">缺口机位</button>
+        <button id="testFps">异帧率对齐</button>
+        <button id="testSeek">拖动后切换</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="masterAudio" preload="auto"></audio>
+<script type="module" src="./src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "width": 320,
+  "height": 180,
+  "duration": 40,
+  "audio": {
+    "src": "master.wav",
+    "sampleRate": 44100,
+    "role": "master"
+  },
+  "cameras": [
+    {
+      "id": "cam-wide",
+      "label": "全景机位",
+      "hue": 0,
+      "fps": 30,
+      "width": 320,
+      "height": 180,
+      "codec": "vp8",
+      "segments": [
+        {
+          "index": 0,
+          "src": "cam-wide-0.ivf",
+          "start": 0,
+          "end": 16,
+          "fps": 30,
+          "gopFrames": 60
+        },
+        {
+          "index": 1,
+          "src": "cam-wide-1.ivf",
+          "start": 16,
+          "end": 32,
+          "fps": 30,
+          "gopFrames": 60
+        },
+        {
+          "index": 2,
+          "src": "cam-wide-2.ivf",
+          "start": 32,
+          "end": 40,
+          "fps": 30,
+          "gopFrames": 60
+        }
+      ]
+    },
+    {
+      "id": "cam-left",
+      "label": "左侧机位",
+      "hue": 120,
+      "fps": 25,
+      "width": 320,
+      "height": 180,
+      "codec": "vp8",
+      "segments": [
+        {
+          "index": 0,
+          "src": "cam-left-0.ivf",
+          "start": 4,
+          "end": 20,
+          "fps": 25,
+          "gopFrames": 50
+        },
+        {
+          "index": 1,
+          "src": "cam-left-1.ivf",
+          "start": 20,
+          "end": 40,
+          "fps": 25,
+          "gopFrames": 50
+        }
+      ]
+    },
+    {
+      "id": "cam-drum",
+      "label": "鼓点机位",
+      "hue": 240,
+      "fps": 24,
+      "width": 320,
+      "height": 180,
+      "codec": "vp8",
+      "segments": [
+        {
+          "index": 0,
+          "src": "cam-drum-0.ivf",
+          "start": 8,
+          "end": 24,
+          "fps": 24,
+          "gopFrames": 48
+        },
+        {
+          "index": 1,
+          "src": "cam-drum-1.ivf",
+          "start": 24,
+          "end": 36,
+          "fps": 24,
+          "gopFrames": 48
+        }
+      ]
+    },
+    {
+      "id": "cam-closeup",
+      "label": "特写机位",
+      "hue": 300,
+      "fps": 15,
+      "width": 320,
+      "height": 180,
+      "codec": "vp8",
+      "segments": [
+        {
+          "index": 0,
+          "src": "cam-closeup-0.ivf",
+          "start": 10,
+          "end": 24,
+          "fps": 15,
+          "gopFrames": 30
+        },
+        {
+          "index": 1,
+          "src": "cam-closeup-1.ivf",
+          "start": 30,
+          "end": 36,
+          "fps": 15,
+          "gopFrames": 30
+        }
+      ]
+    }
+  ]
+}
